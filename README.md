@@ -36,4 +36,4 @@ node tests/test_thresholds.js
 
 `tests/spreadsheet_expected.json` holds the workbook recalculated in LibreOffice for every gestational age choice (16 choices × 57 six-hourly rows × 2 lines). The test checks the web version against all 1,824 values, plus interpolation, banding and input validation.
 
-**Disclaimer:** this tool supports, and does not replace, clinical judgement and current guidance. It is a reference aid, not a certified medical device and not a NICE product.
+**Intended purpose:** displays the published NICE CG98 phototherapy and exchange transfusion thresholds, and the difference between an entered value and them, for reference. The treating clinician decides on treatment. It supports, and does not replace, clinical judgement and current guidance. Not a NICE product.
