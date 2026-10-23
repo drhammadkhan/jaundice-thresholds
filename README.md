@@ -4,7 +4,7 @@ A tool from the [Evelina Neonatal Data Group](https://drhammadkhan.github.io/eve
 
 Choose a baby's gestational age (23 to 37 weeks, or 38 weeks and over) to see the phototherapy and exchange transfusion lines for neonatal jaundice, then add total serum bilirubin readings (µmol/litre) to see where each one falls: below the phototherapy line, between the two lines, or at or above the exchange transfusion line.
 
-Click or tap the chart (or the Enlarge button) to open it full screen: a larger chart on any screen size, with a tap on any reading showing its exact distance from both lines. Press Esc or Close to return.
+Click or tap the chart (or the Enlarge button) to open it full screen: a larger chart on any screen size, with a tap on any reading showing its exact distance from both lines. Press Esc or Close to return. On a touch phone held upright, the popup lays the chart out sideways (landscape); turn the phone anticlockwise to read it, and turning the phone switches to the normal landscape view.
 
 Static site: no build step, no dependencies, nothing leaves the browser. Open `index.html`. Readings are not stored; refreshing the page clears them. Fonts (Fraunces and DM Mono, SIL Open Font License) are self-hosted in `fonts/`.
 

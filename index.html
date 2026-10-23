@@ -265,7 +265,15 @@
   .ch-sel { fill: none; stroke: var(--ink); stroke-width: 2; }
   #chartClose { white-space: nowrap; flex: none; }
   .rotate-hint { display: none; margin: 0; font: 400 .74rem/1.4 var(--mono); color: var(--mute); }
-  @media (orientation: portrait) and (max-width: 600px) { .rotate-hint { display: block; } }
+  /* A phone held upright: lay the popup out sideways (landscape) and rotate it a quarter turn, so the chart is
+     always the wide shape and you just turn the phone to read it. Turning the phone drops this and shows it normally. */
+  @media (orientation: portrait) and (max-width: 700px) and (pointer: coarse) {
+    dialog#chartDialog { width: 100vh; width: 100dvh; height: 100vw; max-width: none; max-height: none; inset: auto; top: 0; left: 100vw; margin: 0; padding: 8px 14px; transform: rotate(90deg); transform-origin: top left; }
+    dialog#chartDialog[open] { gap: 6px; }
+    .dlg-detail { min-height: 0; font-size: .85rem; }
+    #chartDialog .legend { display: none; }
+    .rotate-hint { display: block; }
+  }
   @media (max-height: 420px) { dialog#chartDialog { padding: 8px 14px; gap: 6px; } .dlg-detail { min-height: 0; font-size: .85rem; } #chartDialog .legend { display: none; } }
   .chartwrap svg { display: block; width: 100%; height: auto; }
   .ch-grid { stroke: var(--line); stroke-width: 1; }
@@ -424,7 +432,7 @@
   <p class="dlg-detail" id="bigDetail" aria-live="polite"></p>
   <div class="chartbig" id="chartBig"></div>
   <div class="legend" aria-hidden="true"><span><i class="photo"></i>Phototherapy</span><span><i class="exch"></i>Exchange transfusion</span><span><i class="dot"></i>Reading</span></div>
-  <p class="rotate-hint">Turn your phone sideways for a wider chart.</p>
+  <p class="rotate-hint">Chart shown sideways: turn your phone anticlockwise to read it.</p>
 </dialog>
 <div class="sr-only" id="live" role="status" aria-live="polite"></div>
 <script src="thresholds.js?v=dev"></script>
