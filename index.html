@@ -435,7 +435,7 @@
         <p>This is a web version of the <i>Treatment threshold graphs</i> Excel tool that accompanies the NICE guideline <i>Jaundice in newborn babies under 28 days</i> (CG98, 2010; workbook last saved 2015). The lines are tested against the workbook for every gestational age. Plotting your own readings and the banding of each reading are additions to the workbook.</p>
         <p><b>Formulas.</b> Born at 23 to 37 weeks (gestation G): phototherapy rises in a straight line from 40 at birth to 10 &times; G &minus; 100 at 72 hours, then stays flat; exchange transfusion rises from 80 to 10 &times; G at 72 hours, then stays flat. Born at 38 weeks or more: the NICE table at 6-hourly points, with straight lines between points. Values are in &micro;mol/litre, defined every 6 hours to 336 hours, and never extrapolated. The full table for the chosen gestation is shown on the page.</p>
         <p>NICE has since noted that bilirubin assays from different manufacturers give different results, and plans to review thresholds for term babies. Check the current guideline: <a href="https://www.nice.org.uk/guidance/cg98" target="_blank" rel="noopener">nice.org.uk/guidance/cg98</a>.</p>
-        <p>Nothing you enter is stored or sent anywhere. Refreshing the page clears the readings. Not a NICE product.</p>
+        <p>Nothing you enter is sent anywhere. Your entries are kept in this browser tab so a refresh does not lose them, and are cleared when you close the tab or press Clear readings. Not a NICE product.</p>
       </div>
     </details>
   </div>
@@ -651,7 +651,39 @@
     exchange: 'At or above exchange transfusion threshold'
   };
 
+  // Keep the entries for this browser tab only (sessionStorage), so a refresh does not lose them. They are cleared
+  // when the tab is closed and never leave the device.
+  var STORE = 'jaundice-entries';
+  function save() {
+    try {
+      var rs = [].map.call(rowsEl.children, function (row) {
+        var g = function (k) { return row.querySelector('[data-k=' + k + ']').value; };
+        return { dt: g('dt'), hours: g('hours'), tsb: g('tsb') };
+      });
+      sessionStorage.setItem(STORE, JSON.stringify({ ga: gaEl.value, mode: mode, birth: birthEl.value, rows: rs }));
+    } catch (e) {}
+  }
+  function restore() {
+    try {
+      var d = JSON.parse(sessionStorage.getItem(STORE) || 'null');
+      if (!d || !d.rows || !d.rows.length) return;
+      if (d.ga) gaEl.value = d.ga;
+      birthEl.value = d.birth || '';
+      var m = d.mode === 'dt' ? 'dt' : 'hours';
+      mode = m; $('birthField').hidden = m !== 'dt';
+      [].forEach.call(document.querySelectorAll('input[name=mode]'), function (r) { r.checked = r.value === m; });
+      rowsEl.innerHTML = '';
+      d.rows.slice(0, 50).forEach(function (r) {
+        var row = addRow(false);
+        row.querySelector('[data-k=dt]').value = r.dt || '';
+        row.querySelector('[data-k=hours]').value = r.hours || '';
+        row.querySelector('[data-k=tsb]').value = r.tsb || '';
+      });
+    } catch (e) {}
+  }
+
   function refresh() {
+    save();
     var gv = gaEl.value, ga = gv === '' ? null : (gv === '>=38' ? '>=38' : Number(gv));
     var birth = localDate(birthEl.value), bErr = '';
     if (mode === 'dt' && birth && birth.getFullYear() < 1900 && !typing(birthEl, birth)) bErr = 'Enter a valid date and time of birth.';
@@ -796,6 +828,7 @@
   window.addEventListener('beforeprint', refresh);
 
   addRow(false);
+  restore();
   setupWheelFields();
   refresh();
 })();
