@@ -33,6 +33,30 @@ assert.strictEqual(T.assess(37, 72, 369.9).band, 'phototherapy');
 assert.strictEqual(T.assess(37, 72, 370).band, 'exchange');
 assert.strictEqual(T.assess('>=38', 0, 100).band, 'exchange');   // at birth both lines are 100 in the workbook
 
+// how far above (+) or below (-) each line a reading is, in micromol/litre
+var d = T.assess(37, 36, 250);                                 // lines at 155 and 225 (checked against the workbook above)
+assert.strictEqual(d.fromPhototherapy, 95);
+assert.strictEqual(d.fromExchange, 25);
+d = T.assess(37, 36, 150);
+assert.strictEqual(d.fromPhototherapy, -5);
+assert.strictEqual(d.fromExchange, -75);
+d = T.assess(37, 72, 270);
+assert.strictEqual(d.fromPhototherapy, 0);                     // exactly on the phototherapy line
+assert.strictEqual(d.fromExchange, -100);
+d = T.assess('>=38', 96, 380);
+assert.strictEqual(d.fromPhototherapy, 30);
+assert.strictEqual(d.fromExchange, -70);
+// the sign always agrees with the band
+[23, 30, 37, '>=38'].forEach(function (ga) {
+  [0, 5, 24, 71, 96, 200, 336].forEach(function (h) {
+    [0, 60, 150, 250, 400, 600].forEach(function (v) {
+      var a = T.assess(ga, h, v);
+      assert.strictEqual(a.fromPhototherapy >= 0, a.band !== 'below');
+      assert.strictEqual(a.fromExchange >= 0, a.band === 'exchange');
+    });
+  });
+});
+
 // bad input is refused rather than guessed at
 assert.throws(function () { T.phototherapy(22, 10); }, RangeError);
 assert.throws(function () { T.phototherapy(38, 10); }, RangeError);
