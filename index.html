@@ -427,7 +427,7 @@
   <p class="rotate-hint">Turn your phone sideways for a wider chart.</p>
 </dialog>
 <div class="sr-only" id="live" role="status" aria-live="polite"></div>
-<script src="thresholds.js"></script>
+<script src="thresholds.js?v=dev"></script>
 <script>
 (function () {
   var T = JAUNDICE;
@@ -442,6 +442,7 @@
   function localDate(s) { if (!s) return null; var d = new Date(s); return isNaN(d.getTime()) ? null : d; }
   // "25.6 above" / "86.4 below" / "on the line" for a signed distance in micromol/litre
   function gap(d, units) {
+    if (typeof d !== 'number' || !isFinite(d)) return 'distance unavailable';
     var r = Math.round(Math.abs(d) * 10) / 10;
     if (d === 0) return 'on the line';
     if (r === 0) return d > 0 ? 'just above' : 'just below';
@@ -620,9 +621,11 @@
         if (ga === null) html = 'Age ' + esc(ageText(r.hours)) + '. Choose a gestational age to see the result.';
         else {
           var a = T.assess(ga, r.hours, r.tsb);
+          // worked out here from the two line values (not read from assess()) so a mismatched cached thresholds.js cannot produce NaN
+          var dP = r.tsb - a.phototherapy, dE = r.tsb - a.exchange;
           html = '<span class="chip ' + a.band + '">' + BAND_TEXT[a.band] + '</span><span>Age ' + esc(ageText(r.hours)) + '</span>' +
-            distLine('Phototherapy', a.phototherapy, a.fromPhototherapy, 'phototherapy') + distLine('Exchange', a.exchange, a.fromExchange, 'exchange');
-          pts.push({ hours: r.hours, tsb: r.tsb, band: a.band, pho: a.phototherapy, exc: a.exchange, dp: a.fromPhototherapy, de: a.fromExchange });
+            distLine('Phototherapy', a.phototherapy, dP, 'phototherapy') + distLine('Exchange', a.exchange, dE, 'exchange');
+          pts.push({ hours: r.hours, tsb: r.tsb, band: a.band, pho: a.phototherapy, exc: a.exchange, dp: dP, de: dE });
         }
         if (ga === null) pts.push({ hours: r.hours, tsb: r.tsb, band: '' });
       }
