@@ -55,11 +55,15 @@
     return hours >= 72 ? top : 80 + (top - 80) * (hours / 72);
   }
 
-  /** Where a bilirubin level sits against the two lines at a given age. */
+  /**
+   * Where a bilirubin level sits against the two lines at a given age.
+   * fromPhototherapy / fromExchange are signed distances in micromol/litre: positive = above the line,
+   * negative = below it, zero = exactly on it.
+   */
   function assess(gestation, hours, tsb) {
     var p = phototherapy(gestation, hours), e = exchange(gestation, hours);
     var band = tsb >= e ? 'exchange' : tsb >= p ? 'phototherapy' : 'below';
-    return { phototherapy: p, exchange: e, band: band };
+    return { phototherapy: p, exchange: e, band: band, fromPhototherapy: tsb - p, fromExchange: tsb - e };
   }
 
   /** The 6-hourly points the workbook plots, for one gestation: [{hours, phototherapy, exchange}, ...]. */

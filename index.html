@@ -273,6 +273,10 @@
   .rd:first-of-type { border-top: 0; padding-top: 0; }
   .rd label { margin-bottom: 6px; }
   .rd .out { display: flex; flex-direction: column; gap: 6px; justify-content: center; min-height: 48px; font: 400 .8rem/1.35 var(--mono); color: var(--mute); }
+  .dist { display: flex; justify-content: space-between; gap: 12px; border-top: 1px dashed var(--line); padding-top: 4px; }
+  .dist b, .dist strong { color: var(--ink); font-weight: 500; }
+  .dist strong.over.phototherapy { color: var(--amber-ink); }
+  .dist strong.over.exchange { color: var(--danger-ink); }
   .chip { display: inline-block; align-self: flex-start; font: 500 .72rem/1.3 var(--mono); padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--mute); }
   .chip.below { color: var(--cool); background: var(--coolbg); }
   .chip.phototherapy { color: var(--amber-ink); background: var(--amberbg); }
@@ -287,7 +291,8 @@
     .rd { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
     .rd .out { grid-column: 1 / -1; min-height: 0; }
     .rd .f-time { grid-column: 1 / -1; }
-    button.btn.rm { grid-column: 2; justify-self: end; }
+    button.btn.rm { grid-column: 2; justify-self: end; order: 1; }
+    .rd .out { order: 2; }
   }
   table.thr { width: 100%; border-collapse: collapse; font-size: .92rem; margin: 6px 0 10px; }
   table.thr th, table.thr td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
@@ -369,7 +374,7 @@
       <div>
         <p><b>Born at 23 to 37 weeks.</b> Phototherapy starts at 40 and rises in a straight line to (10 &times; gestation in weeks &minus; 100) at 72 hours, then stays flat. Exchange transfusion starts at 80 and rises in a straight line to (10 &times; gestation in weeks) at 72 hours, then stays flat. For example at 36 weeks: phototherapy 260 and exchange 360 from 72 hours.</p>
         <p><b>Born at 38 weeks or more.</b> The workbook holds a typed table: phototherapy rises from 100 at birth to 350 at 96 hours; exchange rises from 100 to 450 at 42 hours. Both then stay flat.</p>
-        <p><b>Reading the result.</b> A reading at or above a line counts as on that line. At birth the two lines are both 100 for babies of 38 weeks or more, as in the workbook.</p>
+        <p><b>Reading the result.</b> Each reading shows how far above or below each line it sits, in µmol/litre (the reading minus the line at that age). A reading at or above a line counts as on that line. At birth the two lines are both 100 for babies of 38 weeks or more, as in the workbook.</p>
       </div>
     </details>
     <details>
@@ -403,6 +408,16 @@
   function fmt(n) { return String(Math.round(n * 10) / 10); }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function localDate(s) { if (!s) return null; var d = new Date(s); return isNaN(d.getTime()) ? null : d; }
+  // "25.6 above" / "86.4 below" / "on the line" for a signed distance in micromol/litre
+  function gap(d, units) {
+    var r = Math.round(Math.abs(d) * 10) / 10;
+    if (d === 0) return 'on the line';
+    if (r === 0) return d > 0 ? 'just above' : 'just below';
+    return fmt(r) + (units ? '\u00a0µmol/L' : '') + (d > 0 ? ' above' : ' below');
+  }
+  function distLine(name, line, d, cls) {
+    return '<span class="dist"><span>' + name + ' line <b>' + fmt(line) + '</b></span> <strong class="' + (d >= 0 ? 'over ' + cls : 'under') + '">' + gap(d) + '</strong></span>';
+  }
   function ageText(h) { return fmt(h) + ' h' + (h >= 24 ? ' (' + fmt(h / 24) + ' days)' : ''); }
   // Chrome treats a typed date as valid after the first year digit (year 0002), so while a field has focus an
   // implausibly early year means "still typing", not an error; the message appears once focus leaves.
@@ -416,8 +431,8 @@
       '<div class="f-time"' + (mode === 'dt' ? '' : ' hidden') + '><label for="t' + id + '">Date and time of sample</label><input id="t' + id + '" data-k="dt" type="datetime-local" min="1900-01-01T00:00"></div>' +
       '<div class="f-hours"' + (mode === 'hours' ? '' : ' hidden') + '><label for="h' + id + '">Age at sample <span class="hint">(hours)</span></label><div class="unit"><input id="h' + id + '" data-k="hours" type="number" inputmode="decimal" min="0" max="336" step="any" placeholder="e.g. 36"><span>h</span></div></div>' +
       '<div class="f-tsb"><label for="b' + id + '">Serum bilirubin</label><div class="unit"><input id="b' + id + '" data-k="tsb" type="number" inputmode="decimal" min="0" max="1000" step="any" enterkeyhint="done" placeholder="e.g. 245"><span>&micro;mol/L</span></div></div>' +
-      '<button class="btn rm" type="button" aria-label="Remove this reading" title="Remove">&#10005;</button>' +
-      '<div class="out" aria-live="off"></div>';
+      '<div class="out" aria-live="off"></div>' +
+      '<button class="btn rm" type="button" aria-label="Remove this reading" title="Remove">&#10005;</button>';
     rowsEl.appendChild(row);
     if (focus) row.querySelector(mode === 'dt' ? '[data-k=dt]' : '[data-k=hours]').focus();
     return row;
@@ -492,7 +507,7 @@
     var sorted = pts.slice().sort(function (a, b) { return a.hours - b.hours; });
     if (sorted.length > 1) s += '<polyline class="ch-link" points="' + sorted.map(function (p) { return x(p.hours / 24).toFixed(1) + ',' + y(p.tsb).toFixed(1); }).join(' ') + '"/>';
     sorted.forEach(function (p) {
-      s += '<circle class="ch-pt ' + (p.band || '') + '" cx="' + x(p.hours / 24).toFixed(1) + '" cy="' + y(p.tsb).toFixed(1) + '" r="5.5"><title>' + esc(fmt(p.tsb) + ' µmol/L at ' + ageText(p.hours)) + '</title></circle>';
+      s += '<circle class="ch-pt ' + (p.band || '') + '" cx="' + x(p.hours / 24).toFixed(1) + '" cy="' + y(p.tsb).toFixed(1) + '" r="5.5"><title>' + esc(fmt(p.tsb) + ' µmol/L at ' + ageText(p.hours) + (p.dp === undefined ? '' : ': ' + gap(p.dp, true) + ' phototherapy, ' + gap(p.de, true) + ' exchange')) + '</title></circle>';
     });
     chartEl.innerHTML = s + '</svg>';
   }
@@ -532,8 +547,9 @@
         if (ga === null) html = 'Age ' + esc(ageText(r.hours)) + '. Choose a gestational age to see the result.';
         else {
           var a = T.assess(ga, r.hours, r.tsb);
-          html = '<span class="chip ' + a.band + '">' + BAND_TEXT[a.band] + '</span>Age ' + esc(ageText(r.hours)) + ' &middot; phototherapy &ge; ' + fmt(a.phototherapy) + ', exchange &ge; ' + fmt(a.exchange);
-          pts.push({ hours: r.hours, tsb: r.tsb, band: a.band, pho: a.phototherapy, exc: a.exchange });
+          html = '<span class="chip ' + a.band + '">' + BAND_TEXT[a.band] + '</span><span>Age ' + esc(ageText(r.hours)) + '</span>' +
+            distLine('Phototherapy', a.phototherapy, a.fromPhototherapy, 'phototherapy') + distLine('Exchange', a.exchange, a.fromExchange, 'exchange');
+          pts.push({ hours: r.hours, tsb: r.tsb, band: a.band, pho: a.phototherapy, exc: a.exchange, dp: a.fromPhototherapy, de: a.fromExchange });
         }
         if (ga === null) pts.push({ hours: r.hours, tsb: r.tsb, band: '' });
       }
@@ -553,7 +569,7 @@
       summaryEl.className = 'banner ' + (latest.band === 'phototherapy' ? 'consider' : latest.band);
       summaryEl.innerHTML = '<div><b></b><p></p></div>';
       summaryEl.querySelector('b').textContent = BAND_HEAD[latest.band];
-      text = 'Latest reading: ' + fmt(latest.tsb) + ' µmol/L at ' + ageText(latest.hours) + '. At this age phototherapy is ≥ ' + fmt(latest.pho) + ' and exchange transfusion ≥ ' + fmt(latest.exc) + ' µmol/L.';
+      text = 'Latest reading: ' + fmt(latest.tsb) + ' µmol/L at ' + ageText(latest.hours) + '. That is ' + gap(latest.dp, true) + (latest.dp === 0 ? '' : ' the') + ' phototherapy line (' + fmt(latest.pho) + ') and ' + gap(latest.de, true) + (latest.de === 0 ? '' : ' the') + ' exchange transfusion line (' + fmt(latest.exc) + ' µmol/L).';
       summaryEl.querySelector('p').textContent = text;
       text = BAND_HEAD[latest.band] + '. ' + text;
     } else summaryEl.hidden = true;

@@ -14,7 +14,7 @@ The thresholds are a port of the NICE CG98 implementation tool *Treatment thresh
 - **Born at 38 weeks or more:** a typed table at 6-hourly points (phototherapy 100 to 350 at 96 hours; exchange 100 to 450 at 42 hours), straight lines between points, flat after.
 - Defined every 6 hours from 0 to 336 hours (14 days). Nothing is extrapolated.
 
-Plotting readings and banding them (at or above a line counts as on that line) are additions to the workbook.
+Plotting readings, banding them (at or above a line counts as on that line) and showing how far above or below each line a reading is, in µmol/litre, are additions to the workbook.
 
 ### Needs checking before clinical use
 
