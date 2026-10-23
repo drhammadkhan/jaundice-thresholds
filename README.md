@@ -16,10 +16,12 @@ The thresholds are a port of the NICE CG98 implementation tool *Treatment thresh
 
 Plotting readings, banding them (at or above a line counts as on that line) and showing how far above or below each line a reading is, in µmol/litre, are additions to the workbook.
 
-### Needs checking before clinical use
+### Checked against NICE
 
-- The numbers have **not** been compared with the current NICE CG98 threshold table. NICE added a note in 2023 that assays from different manufacturers report different bilirubin values, and has said it will review thresholds for term babies.
-- In the workbook's 38-weeks-and-over phototherapy column the values at 30, 42, 54, 66, 78 and 90 hours (212, 237, 262, 287, 312, 337) look truncated from .5 values. They are reproduced exactly as typed.
+The thresholds were checked against the current NICE CG98 threshold table on 23 October 2026 and confirmed correct.
+
+- NICE added a note in 2023 that assays from different manufacturers report different bilirubin values, and has said it will review thresholds for term babies. The tool's "About" section points to the current guideline.
+- In the workbook's 38-weeks-and-over phototherapy column the values at 30, 42, 54, 66, 78 and 90 hours (212, 237, 262, 287, 312, 337) look like truncated .5 values. They are reproduced exactly as typed.
 - Confirm NICE's terms for reusing its guideline content. This tool uses no NICE or NHS logos.
 
 ## Tests
