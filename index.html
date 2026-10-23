@@ -300,10 +300,14 @@
   .rd:first-of-type { border-top: 0; padding-top: 0; }
   .rd label { margin-bottom: 6px; }
   .rd .out { display: flex; flex-direction: column; gap: 6px; justify-content: center; min-height: 48px; font: 400 .8rem/1.35 var(--mono); color: var(--mute); }
-  .dist { display: flex; justify-content: space-between; gap: 12px; border-top: 1px dashed var(--line); padding-top: 4px; }
-  .dist b, .dist strong { color: var(--ink); font-weight: 500; }
-  .dist strong.over.phototherapy { color: var(--amber-ink); }
-  .dist strong.over.exchange { color: var(--danger-ink); }
+  .rel { font: italic 400 1.02rem/1.35 var(--serif); color: var(--ink); }
+  .rel .u { font: 400 .68rem var(--mono); font-style: normal; color: var(--mute); }
+  .rel.below { color: var(--cool); } .rel.phototherapy { color: var(--amber-ink); } .rel.exchange { color: var(--danger-ink); }
+  .rd .out .sub { font: 400 .74rem/1.4 var(--mono); color: var(--mute); }
+  .banner .ctx { font: 500 .82rem/1.4 var(--mono); color: var(--mute); margin: 2px 0 6px; }
+  .banner .relline { font: italic 400 1.1rem/1.35 var(--serif); }
+  .dlg-detail strong { display: block; font-weight: 600; }
+  .dlg-detail em { display: block; }
   .chip { display: inline-block; align-self: flex-start; font: 500 .72rem/1.3 var(--mono); padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--mute); }
   .chip.below { color: var(--cool); background: var(--coolbg); }
   .chip.phototherapy { color: var(--amber-ink); background: var(--amberbg); }
@@ -448,17 +452,20 @@
   function fmt(n) { return String(Math.round(n * 10) / 10); }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function localDate(s) { if (!s) return null; var d = new Date(s); return isNaN(d.getTime()) ? null : d; }
-  // "25.6 above" / "86.4 below" / "on the line" for a signed distance in micromol/litre
-  function gap(d, units) {
-    if (typeof d !== 'number' || !isFinite(d)) return 'distance unavailable';
+  // A signed distance in micromol/litre, as short as the chart: "25 above Exchange", "just below Phototherapy", "on the Exchange line"
+  function lineBit(name, d) {
+    if (typeof d !== 'number' || !isFinite(d)) return name + ': distance unavailable';
     var r = Math.round(Math.abs(d) * 10) / 10;
-    if (d === 0) return 'on the line';
-    if (r === 0) return d > 0 ? 'just above' : 'just below';
-    return fmt(r) + (units ? '\u00a0µmol/L' : '') + (d > 0 ? ' above' : ' below');
+    if (d === 0) return 'on the ' + name + ' line';
+    if (r === 0) return (d > 0 ? 'just above ' : 'just below ') + name;
+    return fmt(r) + (d > 0 ? ' above ' : ' below ') + name;
   }
-  function distLine(name, line, d, cls) {
-    return '<span class="dist"><span>' + name + ' line <b>' + fmt(line) + '</b></span> <strong class="' + (d >= 0 ? 'over ' + cls : 'under') + '">' + gap(d) + '</strong></span>';
-  }
+  // One line, in the order they sit on the chart (top line first): "25 above Exchange, 95 above Phototherapy"
+  function relShort(p) { return lineBit('Exchange', p.de) + ', ' + lineBit('Phototherapy', p.dp); }
+  function gaLabel(ga) { return ga === '>=38' ? '38 weeks or more' : ga + ' weeks'; }
+  // "30 weeks · 58 h (2.4 days) · 147 µmol/L"
+  function ctxText(ga, p) { return (ga === null ? '' : gaLabel(ga) + ' · ') + ageText(p.hours) + ' · ' + fmt(p.tsb) + ' µmol/L'; }
+  var UNIT = ' <span class="u">(µmol/L)</span>';
   function ageText(h) { return fmt(h) + ' h' + (h >= 24 ? ' (' + fmt(h / 24) + ' days)' : ''); }
   // Chrome treats a typed date as valid after the first year digit (year 0002), so while a field has focus an
   // implausibly early year means "still typing", not an error; the message appears once focus leaves.
@@ -560,12 +567,13 @@
 
   function sortedPts(pts) { return pts.slice().sort(function (a, b) { return a.hours - b.hours; }); }
 
-  // "That is 95 µmol/L above the phototherapy line (155) and 25 µmol/L above the exchange transfusion line (225 µmol/L)."
-  function relText(p) {
-    return 'That is ' + gap(p.dp, true) + (p.dp === 0 ? '' : ' the') + ' phototherapy line (' + fmt(p.pho) + ') and ' + gap(p.de, true) + (p.de === 0 ? '' : ' the') + ' exchange transfusion line (' + fmt(p.exc) + ' µmol/L).';
-  }
   function pointText(p) {
-    return fmt(p.tsb) + ' µmol/L at ' + ageText(p.hours) + (p.dp === undefined ? '' : '. ' + BAND_HEAD[p.band] + '. ' + relText(p));
+    return fmt(p.tsb) + ' µmol/L at ' + ageText(p.hours) + (p.dp === undefined ? '' : ': ' + relShort(p));
+  }
+  // The popup's two lines: what the reading is, then how far it is from each line
+  function detailHtml(ga, p) {
+    return '<strong>' + esc(ctxText(ga, p)) + '</strong>' +
+      (p.dp === undefined ? '' : '<em class="rel ' + p.band + '">' + esc(relShort(p)) + UNIT + '</em>');
   }
 
   var state = { ga: null, pts: [], summary: '', sel: -1 };
@@ -588,7 +596,7 @@
     var svg = chartSvg(state.ga, state.pts, W, H, true, state.sel);
     if (svg !== lastBig) { lastBig = svg; bigEl.innerHTML = svg; }
     $('bigSub').textContent = state.ga === null ? '' : ' · ' + (state.ga === '>=38' ? '38 weeks or more' : state.ga + ' weeks');
-    $('bigDetail').textContent = state.sel >= 0 && sp[state.sel] ? pointText(sp[state.sel])
+    $('bigDetail').innerHTML = state.sel >= 0 && sp[state.sel] ? detailHtml(state.ga, sp[state.sel])
       : (state.summary || (sp.length ? 'Tap a reading to see how far it is from each line.' : 'Add readings on the page to plot them here.'));
   }
 
@@ -602,9 +610,9 @@
 
   // ---- everything that depends on the inputs ------------------------------
   var BAND_TEXT = {
-    below: 'Below the phototherapy line',
-    phototherapy: 'At or above the phototherapy line, below exchange',
-    exchange: 'At or above the exchange transfusion line'
+    below: 'Below phototherapy line',
+    phototherapy: 'At or above phototherapy line',
+    exchange: 'At or above exchange line'
   };
   var BAND_HEAD = {
     below: 'Below phototherapy threshold',
@@ -631,8 +639,10 @@
           var a = T.assess(ga, r.hours, r.tsb);
           // worked out here from the two line values (not read from assess()) so a mismatched cached thresholds.js cannot produce NaN
           var dP = r.tsb - a.phototherapy, dE = r.tsb - a.exchange;
-          html = '<span class="chip ' + a.band + '">' + BAND_TEXT[a.band] + '</span><span>Age ' + esc(ageText(r.hours)) + '</span>' +
-            distLine('Phototherapy', a.phototherapy, dP, 'phototherapy') + distLine('Exchange', a.exchange, dE, 'exchange');
+          var pt = { hours: r.hours, tsb: r.tsb, band: a.band, pho: a.phototherapy, exc: a.exchange, dp: dP, de: dE };
+          html = '<span class="chip ' + a.band + '">' + BAND_TEXT[a.band] + '</span>' +
+            '<span class="rel ' + a.band + '">' + esc(relShort(pt)) + '</span>' +
+            '<span class="sub">Age ' + esc(ageText(r.hours)) + ' · lines at this age: exchange ' + fmt(a.exchange) + ', phototherapy ' + fmt(a.phototherapy) + ' µmol/L</span>';
           pts.push({ hours: r.hours, tsb: r.tsb, band: a.band, pho: a.phototherapy, exc: a.exchange, dp: dP, de: dE });
         }
         if (ga === null) pts.push({ hours: r.hours, tsb: r.tsb, band: '' });
@@ -649,14 +659,14 @@
       var latest = banded.reduce(function (a, b) { return b.hours > a.hours ? b : a; });
       summaryEl.hidden = false;
       summaryEl.className = 'banner ' + (latest.band === 'phototherapy' ? 'consider' : latest.band);
-      summaryEl.innerHTML = '<div><b></b><p></p></div>';
+      summaryEl.innerHTML = '<div><b></b><p class="ctx"></p><p class="relline"></p></div>';
       summaryEl.querySelector('b').textContent = BAND_HEAD[latest.band];
-      text = 'Latest reading: ' + fmt(latest.tsb) + ' µmol/L at ' + ageText(latest.hours) + '. ' + relText(latest);
-      summaryEl.querySelector('p').textContent = text;
-      text = BAND_HEAD[latest.band] + '. ' + text;
+      summaryEl.querySelector('.ctx').textContent = ctxText(ga, latest);
+      summaryEl.querySelector('.relline').textContent = relShort(latest) + ' (µmol/L)';
+      text = BAND_HEAD[latest.band] + '. ' + ctxText(ga, latest) + '. ' + relShort(latest) + ' (µmol/L).';
     } else summaryEl.hidden = true;
     if (text !== lastAnnounced) { lastAnnounced = text; $('live').textContent = text; }
-    state.summary = text;
+    state.summary = banded.length ? detailHtml(ga, latest) : '';
     drawChart(ga, pts);
 
     // threshold table
