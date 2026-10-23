@@ -6,6 +6,8 @@ Choose a baby's gestational age (23 to 37 weeks, or 38 weeks and over) to see th
 
 Click or tap the chart (or the Enlarge button) to open it full screen: a larger chart on any screen size, with a tap on any reading showing its exact distance from both lines. Press Esc or Close to return. On a touch phone held upright, the popup lays the chart out sideways (landscape); turn the phone anticlockwise to read it, and turning the phone switches to the normal landscape view.
 
+Readings are entered as hours since birth by default (or as date and time). On a phone or tablet the age and bilirubin fields open spin wheels (hundreds, tens, ones) instead of the keyboard; "Use the keyboard instead" in the sheet switches that field back to typing. On a computer you type as usual.
+
 Static site: no build step, no dependencies, nothing leaves the browser. Open `index.html`. Readings are not stored; refreshing the page clears them. Fonts (Fraunces and DM Mono, SIL Open Font License) are self-hosted in `fonts/`.
 
 ## Source of the numbers

@@ -247,6 +247,24 @@
   .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
   .card-head h2 { margin: 0; }
   button.btn.small { height: 32px; padding: 0 14px; font-size: .78rem; }
+  /* spin-wheel entry sheet: three digit wheels (hundreds, tens, ones), used on touch devices */
+  input.wheel { cursor: pointer; }
+  dialog#wheelDialog { position: fixed; inset: auto 0 0 0; margin: 0; width: 100%; max-width: none; border: 0; border-radius: 14px 14px 0 0; padding: 12px 16px 18px; background: var(--paper2); color: var(--ink); --wh-h: 220px; box-shadow: 0 -12px 40px rgba(0, 0, 0, .25); }
+  dialog#wheelDialog::backdrop { background: rgba(0, 0, 0, .4); }
+  .wh-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .wh-head strong { font: 500 .8rem/1.3 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--mute); }
+  .wh-value { margin: 8px 0 0; text-align: center; font: 500 1.5rem/1.2 var(--serif); }
+  .wh-cols { position: relative; display: flex; justify-content: center; gap: 10px; margin: 6px 0; }
+  .wh-cols::after { content: ""; position: absolute; left: 0; right: 0; top: calc((var(--wh-h) - 44px) / 2); height: 44px; border-block: 1px solid var(--mute); background: color-mix(in srgb, var(--ink) 6%, transparent); pointer-events: none; border-radius: 6px; }
+  .wh-col { width: 76px; height: var(--wh-h); overflow-y: auto; scroll-snap-type: y mandatory; padding-block: calc((var(--wh-h) - 44px) / 2); scrollbar-width: none; overscroll-behavior: contain; touch-action: pan-y;
+    -webkit-mask-image: linear-gradient(transparent, #000 32%, #000 68%, transparent); mask-image: linear-gradient(transparent, #000 32%, #000 68%, transparent); }
+  .wh-col::-webkit-scrollbar { display: none; }
+  .wh-item { height: 44px; display: grid; place-items: center; scroll-snap-align: center; scroll-snap-stop: always; font: 400 1.7rem/1 var(--serif); font-variant-numeric: tabular-nums; user-select: none; -webkit-user-select: none; }
+  .wh-note { min-height: 1.4em; margin: 0; text-align: center; font: 400 .78rem/1.4 var(--mono); color: var(--danger-ink); }
+  .wh-foot { display: flex; justify-content: space-between; gap: 12px; margin-top: 4px; }
+  button.linkbtn { background: none; border: 0; padding: 8px 0; font: 400 .78rem var(--mono); color: var(--ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+  button.btn:disabled { opacity: .4; }
+  @media (max-height: 460px) { dialog#wheelDialog { --wh-h: 132px; } .wh-value { font-size: 1.2rem; } }
   .chartwrap { width: 100%; cursor: zoom-in; border-radius: 3px; }
   .chartwrap:focus-visible { outline: 2px solid var(--hot); outline-offset: 3px; }
   .hint-tap { margin: 8px 0 0; font: 400 .72rem/1.4 var(--mono); color: var(--mute); }
@@ -359,11 +377,11 @@
       <div class="field" id="modeField">
         <span class="label" id="modeLabel">Enter each reading&rsquo;s age as</span>
         <div class="seg" role="radiogroup" aria-labelledby="modeLabel">
-          <label><input type="radio" name="mode" value="dt" checked><span>Date and time</span></label>
-          <label><input type="radio" name="mode" value="hours"><span>Hours since birth</span></label>
+          <label><input type="radio" name="mode" value="hours" checked><span>Hours since birth</span></label>
+          <label><input type="radio" name="mode" value="dt"><span>Date and time</span></label>
         </div>
       </div>
-      <div class="field" id="birthField">
+      <div class="field" id="birthField" hidden>
         <label for="birth">Date and time of birth</label>
         <input id="birth" type="datetime-local" min="1900-01-01T00:00">
         <div class="err" id="birthErr" role="alert"></div>
@@ -428,6 +446,17 @@
     <p class="credit">A tool from the <a href="https://drhammadkhan.github.io/evelina-neonatal-data-group/">Evelina Neonatal Data Group</a>.<br>Created by Dr Hammad Khan</p>
   </footer>
 </div>
+<dialog id="wheelDialog" aria-labelledby="wheelTitle">
+  <div class="wh-head">
+    <button class="btn small" type="button" id="wheelCancel">Cancel</button>
+    <strong id="wheelTitle">Age at sample</strong>
+    <button class="btn small primary" type="button" id="wheelSet">Set</button>
+  </div>
+  <div class="wh-value" id="wheelValue" aria-live="polite"></div>
+  <div class="wh-cols" id="wheelCols"></div>
+  <p class="wh-note" id="wheelNote" role="status"></p>
+  <div class="wh-foot"><button class="linkbtn" type="button" id="wheelClear">Clear</button><button class="linkbtn" type="button" id="wheelKeyboard">Use the keyboard instead</button></div>
+</dialog>
 <dialog id="chartDialog" aria-labelledby="bigTitle">
   <div class="dlg-head">
     <h2 id="bigTitle">Treatment thresholds<span id="bigSub"></span></h2>
@@ -445,7 +474,7 @@
   var T = JAUNDICE;
   var $ = function (id) { return document.getElementById(id); };
   var gaEl = $('ga'), birthEl = $('birth'), rowsEl = $('rows'), chartEl = $('chart'), summaryEl = $('summary');
-  var mode = 'dt', seq = 0, lastAnnounced = '';
+  var mode = 'hours', seq = 0, lastAnnounced = '';
 
   T.GESTATIONS.forEach(function (g) { gaEl.add(new Option(g === '>=38' ? '38 weeks or more' : g + ' weeks', g)); });
 
@@ -482,6 +511,7 @@
       '<div class="out" aria-live="off"></div>' +
       '<button class="btn rm" type="button" aria-label="Remove this reading" title="Remove">&#10005;</button>';
     rowsEl.appendChild(row);
+    if (typeof setupWheelFields === 'function') setupWheelFields();
     if (focus) row.querySelector(mode === 'dt' ? '[data-k=dt]' : '[data-k=hours]').focus();
     return row;
   }
@@ -695,6 +725,64 @@
   $('add').addEventListener('click', function () { addRow(true); refresh(); });
   $('clear').addEventListener('click', function () { rowsEl.innerHTML = ''; addRow(false); refresh(); });
   $('print').addEventListener('click', function () { window.print(); });
+
+  // ---- spin wheels for the age and bilirubin fields on touch devices ---------------------------------------
+  // A phone has no number wheel to call on, so these are three snapping digit columns (hundreds, tens, ones).
+  // The field itself stays a normal number input (desktop types into it); on a touch device it is read-only and
+  // opens the wheels, and "Use the keyboard instead" hands it back for typing.
+  var ITEM_H = 44, wdlg = $('wheelDialog'), wh = { input: null, digits: [0, 0, 0], maxes: [9, 9, 9], max: 1000, hours: false };
+  function coarse() { return window.matchMedia('(pointer: coarse)').matches; }
+  function isWheelField(el) { return el && el.dataset && (el.dataset.k === 'hours' || el.dataset.k === 'tsb'); }
+  function wheelValue() { return wh.digits[0] * 100 + wh.digits[1] * 10 + wh.digits[2]; }
+  function setupWheelFields() {
+    [].forEach.call(rowsEl.querySelectorAll('[data-k=hours], [data-k=tsb]'), function (el) {
+      var on = coarse() && el.dataset.kb !== '1';
+      el.classList.toggle('wheel', on); el.readOnly = on;
+      if (on) { el.setAttribute('placeholder', 'Tap'); el.setAttribute('aria-haspopup', 'dialog'); }
+      else { el.setAttribute('placeholder', el.dataset.k === 'hours' ? 'e.g. 36' : 'e.g. 245'); el.removeAttribute('aria-haspopup'); }
+    });
+  }
+  function updateWheel() {
+    var n = wheelValue(), over = n > wh.max;
+    $('wheelValue').textContent = wh.hours ? ageText(n) : n + ' µmol/L';
+    $('wheelNote').textContent = over ? (wh.hours ? 'The chart covers the first 14 days (336 hours).' : 'Bilirubin must be 1000 µmol/L or less.') : '';
+    $('wheelSet').disabled = over;
+  }
+  function openWheel(input) {
+    wh.input = input; wh.hours = input.dataset.k === 'hours'; wh.max = wh.hours ? T.MAX_HOURS : 1000; wh.maxes = wh.hours ? [3, 9, 9] : [9, 9, 9];
+    $('wheelTitle').textContent = wh.hours ? 'Age at sample (hours)' : 'Serum bilirubin';
+    var v = input.value === '' ? 0 : Math.max(0, Math.min(999, Math.floor(Number(input.value)) || 0));
+    wh.digits = [Math.floor(v / 100) % 10, Math.floor(v / 10) % 10, v % 10];
+    var cols = $('wheelCols'); cols.innerHTML = '';
+    wh.maxes.forEach(function (max, c) {
+      var col = document.createElement('div'); col.className = 'wh-col'; col.setAttribute('role', 'presentation');
+      for (var d = 0; d <= max; d++) { var it = document.createElement('div'); it.className = 'wh-item'; it.textContent = d; col.appendChild(it); }
+      col.addEventListener('scroll', function () {
+        var i = Math.max(0, Math.min(max, Math.round(col.scrollTop / ITEM_H)));
+        if (wh.digits[c] !== i) { wh.digits[c] = i; updateWheel(); }
+      });
+      cols.appendChild(col);
+    });
+    wdlg.showModal();
+    [].forEach.call(cols.children, function (col, c) { col.scrollTop = wh.digits[c] * ITEM_H; });
+    updateWheel();
+  }
+  function closeWheel(write) {
+    var el = wh.input;
+    if (write !== undefined && el) { el.value = write; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }
+    wdlg.close();
+  }
+  rowsEl.addEventListener('click', function (e) { var el = e.target; if (isWheelField(el) && el.classList.contains('wheel')) openWheel(el); });
+  rowsEl.addEventListener('keydown', function (e) { var el = e.target; if (isWheelField(el) && el.classList.contains('wheel') && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openWheel(el); } });
+  $('wheelSet').addEventListener('click', function () { closeWheel(String(wheelValue())); });
+  $('wheelCancel').addEventListener('click', function () { closeWheel(); });
+  $('wheelClear').addEventListener('click', function () { closeWheel(''); });
+  $('wheelKeyboard').addEventListener('click', function () {
+    var el = wh.input; wdlg.close(); if (!el) return;
+    el.dataset.kb = '1'; setupWheelFields(); el.focus();
+  });
+  wdlg.addEventListener('click', function (e) { if (e.target === wdlg) wdlg.close(); });   // tap outside the sheet
+  window.matchMedia('(pointer: coarse)').addEventListener('change', setupWheelFields);
   chartEl.addEventListener('click', openBig);
   chartEl.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openBig(); } });
   $('chartExpand').addEventListener('click', openBig);
@@ -707,6 +795,7 @@
   window.addEventListener('beforeprint', refresh);
 
   addRow(false);
+  setupWheelFields();
   refresh();
 })();
 </script>
