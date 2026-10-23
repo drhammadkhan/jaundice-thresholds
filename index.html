@@ -244,7 +244,29 @@
   .seg input:checked + span { background: var(--ink); color: var(--paper); }
   .seg input:focus-visible + span { outline: 2px solid var(--hot); outline-offset: 2px; }
   @media (max-width: 480px) { .seg span { padding: 9px 11px; font-size: .68rem; letter-spacing: 0; } }
-  .chartwrap { width: 100%; }
+  .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+  .card-head h2 { margin: 0; }
+  button.btn.small { height: 32px; padding: 0 14px; font-size: .78rem; }
+  .chartwrap { width: 100%; cursor: zoom-in; border-radius: 3px; }
+  .chartwrap:focus-visible { outline: 2px solid var(--hot); outline-offset: 3px; }
+  .hint-tap { margin: 8px 0 0; font: 400 .72rem/1.4 var(--mono); color: var(--mute); }
+  html:has(dialog[open]) { overflow: hidden; }
+  dialog#chartDialog { width: 100vw; height: 100vh; height: 100dvh; max-width: none; max-height: none; margin: 0; border: 0; padding: 14px 18px 16px; background: var(--paper2); color: var(--ink); }
+  dialog#chartDialog[open] { display: flex; flex-direction: column; gap: 10px; }
+  dialog#chartDialog::backdrop { background: rgba(0, 0, 0, .5); }
+  .dlg-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .dlg-head h2 { margin: 0; font: 500 .8rem/1.3 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--mute); }
+  .dlg-detail { margin: 0; min-height: 2.9em; font-size: .95rem; line-height: 1.45; }
+  .chartbig { flex: 1; min-height: 0; }
+  .chartbig svg { display: block; width: 100%; height: 100%; }
+  .chartbig .ch-tick, .chartbig .ch-title, .chartbig .ch-lab-photo, .chartbig .ch-lab-exch { font-size: 13px; }
+  .chartbig .ch-line-photo, .chartbig .ch-line-exch { stroke-width: 3.5; }
+  .chartbig .ch-hit { fill: transparent; cursor: pointer; }
+  .ch-sel { fill: none; stroke: var(--ink); stroke-width: 2; }
+  #chartClose { white-space: nowrap; flex: none; }
+  .rotate-hint { display: none; margin: 0; font: 400 .74rem/1.4 var(--mono); color: var(--mute); }
+  @media (orientation: portrait) and (max-width: 600px) { .rotate-hint { display: block; } }
+  @media (max-height: 420px) { dialog#chartDialog { padding: 8px 14px; gap: 6px; } .dlg-detail { min-height: 0; font-size: .85rem; } #chartDialog .legend { display: none; } }
   .chartwrap svg { display: block; width: 100%; height: auto; }
   .ch-grid { stroke: var(--line); stroke-width: 1; }
   .ch-axis { stroke: var(--mute); stroke-width: 1; fill: none; }
@@ -297,7 +319,7 @@
   table.thr th { font: 500 .68rem/1.2 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--mute); }
   .tablewrap { max-height: 22rem; overflow: auto; }
   @media print {
-    .rm, .readings-actions, .seg, #modeField { display: none !important; }
+    .rm, .readings-actions, .seg, #modeField, #chartExpand, .hint-tap, dialog { display: none !important; }
     .rd { break-inside: avoid; }
     .ch-zone-photo, .ch-zone-exch, .chip, .banner { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
@@ -337,9 +359,13 @@
     </section>
 
     <section class="card" aria-labelledby="chartH">
-      <h2 id="chartH">Treatment thresholds</h2>
+      <div class="card-head">
+        <h2 id="chartH">Treatment thresholds</h2>
+        <button class="btn small" type="button" id="chartExpand" aria-haspopup="dialog" title="Open the chart full screen">Enlarge &#10530;</button>
+      </div>
       <div id="summary" class="banner" hidden></div>
-      <div class="chartwrap" id="chart"></div>
+      <div class="chartwrap" id="chart" role="button" tabindex="0" aria-haspopup="dialog"></div>
+      <p class="hint-tap">Tap or click the chart to open it full screen.</p>
       <div class="legend" aria-hidden="true"><span><i class="photo"></i>Phototherapy</span><span><i class="exch"></i>Exchange transfusion</span><span><i class="dot"></i>Reading</span></div>
     </section>
   </main>
@@ -390,6 +416,16 @@
     <p class="credit">A tool from the <a href="https://drhammadkhan.github.io/evelina-neonatal-data-group/">Evelina Neonatal Data Group</a>.<br>Created by Dr Hammad Khan</p>
   </footer>
 </div>
+<dialog id="chartDialog" aria-labelledby="bigTitle">
+  <div class="dlg-head">
+    <h2 id="bigTitle">Treatment thresholds<span id="bigSub"></span></h2>
+    <button class="btn" type="button" id="chartClose" aria-label="Close the full screen chart">Close &#10005;</button>
+  </div>
+  <p class="dlg-detail" id="bigDetail" aria-live="polite"></p>
+  <div class="chartbig" id="chartBig"></div>
+  <div class="legend" aria-hidden="true"><span><i class="photo"></i>Phototherapy</span><span><i class="exch"></i>Exchange transfusion</span><span><i class="dot"></i>Reading</span></div>
+  <p class="rotate-hint">Turn your phone sideways for a wider chart.</p>
+</dialog>
 <div class="sr-only" id="live" role="status" aria-live="polite"></div>
 <script src="thresholds.js"></script>
 <script>
@@ -470,24 +506,26 @@
   }
 
   // ---- chart --------------------------------------------------------------
-  function drawChart(ga, pts) {
-    var W = Math.max(280, Math.min(760, chartEl.clientWidth || 760)), narrow = W < 460;
-    var H = Math.round(W * (narrow ? .9 : .6));
-    var m = { l: narrow ? 44 : 56, r: 14, t: 12, b: narrow ? 44 : 50 }, VMAX = 590;
+  // The same chart is drawn in the page and, larger, in the full-screen popup. `big` adds finer ticks, larger
+  // points and an invisible larger touch target on each reading; `sel` is the reading picked in the popup.
+  function chartSvg(ga, pts, W, H, big, sel) {
+    var narrow = W < 460;
+    var m = { l: narrow ? (big ? 58 : 46) : (big ? 64 : 56), r: 14, t: 12, b: narrow ? 46 : (big ? 58 : 50) }, VMAX = 590;
     var x = function (d) { return m.l + d / 14 * (W - m.l - m.r); };
     var y = function (v) { return H - m.b - Math.min(v, VMAX) / VMAX * (H - m.t - m.b); };
+    var R = big ? 7.5 : 5.5, sparse = narrow || (H - m.t - m.b) < 300;   // fewer labels when the plot is short or narrow
     var s = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(chartLabel(ga, pts)) + '">', i;
     for (i = 0; i <= 14; i++) {
       s += '<line class="ch-grid" x1="' + x(i).toFixed(1) + '" y1="' + m.t + '" x2="' + x(i).toFixed(1) + '" y2="' + (H - m.b) + '"/>';
-      if (!narrow || i % 2 === 0) s += '<text class="ch-tick" x="' + x(i).toFixed(1) + '" y="' + (H - m.b + 16) + '" text-anchor="middle">' + i + '</text>';
+      if (!narrow || i % 2 === 0) s += '<text class="ch-tick" x="' + x(i).toFixed(1) + '" y="' + (H - m.b + (big ? 18 : 16)) + '" text-anchor="middle">' + i + '</text>';
     }
     for (i = 0; i <= 550; i += 50) {
       s += '<line class="ch-grid" x1="' + m.l + '" y1="' + y(i).toFixed(1) + '" x2="' + (W - m.r) + '" y2="' + y(i).toFixed(1) + '"/>';
-      if (!narrow || i % 100 === 0) s += '<text class="ch-tick" x="' + (m.l - 7) + '" y="' + (y(i) + 4).toFixed(1) + '" text-anchor="end">' + i + '</text>';
+      if (!sparse || i % 100 === 0) s += '<text class="ch-tick" x="' + (m.l - 7) + '" y="' + (y(i) + 4).toFixed(1) + '" text-anchor="end">' + i + '</text>';
     }
     s += '<rect class="ch-axis" x="' + m.l + '" y="' + m.t + '" width="' + (W - m.l - m.r) + '" height="' + (H - m.t - m.b) + '"/>';
     s += '<text class="ch-title" x="' + ((m.l + W - m.r) / 2) + '" y="' + (H - 8) + '" text-anchor="middle">Days from birth</text>';
-    s += '<text class="ch-title" transform="translate(13 ' + ((m.t + H - m.b) / 2) + ') rotate(-90)" text-anchor="middle">Serum bilirubin (µmol/L)</text>';
+    s += '<text class="ch-title" transform="translate(14 ' + ((m.t + H - m.b) / 2) + ') rotate(-90)" text-anchor="middle">' + (H < 330 ? 'µmol/L' : 'Serum bilirubin (µmol/L)') + '</text>';
     if (ga === null) {
       s += '<text class="ch-empty" x="' + ((m.l + W - m.r) / 2) + '" y="' + ((m.t + H - m.b) / 2) + '" text-anchor="middle">Choose a gestational age</text>';
     } else {
@@ -500,13 +538,52 @@
       s += '<text class="ch-lab-photo" x="' + (x(14) - 6).toFixed(1) + '" y="' + (y(last.phototherapy) - 7).toFixed(1) + '" text-anchor="end">Phototherapy</text>';
       s += '<text class="ch-lab-exch" x="' + (x(14) - 6).toFixed(1) + '" y="' + (y(last.exchange) - 7).toFixed(1) + '" text-anchor="end">Exchange</text>';
     }
-    var sorted = pts.slice().sort(function (a, b) { return a.hours - b.hours; });
+    var sorted = sortedPts(pts);
     if (sorted.length > 1) s += '<polyline class="ch-link" points="' + sorted.map(function (p) { return x(p.hours / 24).toFixed(1) + ',' + y(p.tsb).toFixed(1); }).join(' ') + '"/>';
-    sorted.forEach(function (p) {
-      s += '<circle class="ch-pt ' + (p.band || '') + '" cx="' + x(p.hours / 24).toFixed(1) + '" cy="' + y(p.tsb).toFixed(1) + '" r="5.5"><title>' + esc(fmt(p.tsb) + ' µmol/L at ' + ageText(p.hours) + (p.dp === undefined ? '' : ': ' + gap(p.dp, true) + ' phototherapy, ' + gap(p.de, true) + ' exchange')) + '</title></circle>';
+    sorted.forEach(function (p, k) {
+      var cx = x(p.hours / 24).toFixed(1), cy = y(p.tsb).toFixed(1);
+      if (big && k === sel) s += '<circle class="ch-sel" cx="' + cx + '" cy="' + cy + '" r="' + (R + 6) + '"/>';
+      s += '<circle class="ch-pt ' + (p.band || '') + '" cx="' + cx + '" cy="' + cy + '" r="' + R + '"><title>' + esc(pointText(p)) + '</title></circle>';
+      if (big) s += '<circle class="ch-hit" data-i="' + k + '" cx="' + cx + '" cy="' + cy + '" r="20"/>';
     });
-    chartEl.innerHTML = s + '</svg>';
+    return s + '</svg>';
   }
+
+  function sortedPts(pts) { return pts.slice().sort(function (a, b) { return a.hours - b.hours; }); }
+
+  // "That is 95 µmol/L above the phototherapy line (155) and 25 µmol/L above the exchange transfusion line (225 µmol/L)."
+  function relText(p) {
+    return 'That is ' + gap(p.dp, true) + (p.dp === 0 ? '' : ' the') + ' phototherapy line (' + fmt(p.pho) + ') and ' + gap(p.de, true) + (p.de === 0 ? '' : ' the') + ' exchange transfusion line (' + fmt(p.exc) + ' µmol/L).';
+  }
+  function pointText(p) {
+    return fmt(p.tsb) + ' µmol/L at ' + ageText(p.hours) + (p.dp === undefined ? '' : '. ' + BAND_HEAD[p.band] + '. ' + relText(p));
+  }
+
+  var state = { ga: null, pts: [], summary: '', sel: -1 };
+  // Redrawing identical markup would replace the element under the pointer between mouse-down and mouse-up
+  // (a field losing focus triggers a refresh), and the browser then drops the click. So only write on change.
+  var lastSmall = '', lastBig = '';
+  var dlg = $('chartDialog'), bigEl = $('chartBig');
+
+  function drawChart(ga, pts) {
+    state.ga = ga; state.pts = pts;
+    var W = Math.max(280, Math.min(760, chartEl.clientWidth || 760));
+    var svg = chartSvg(ga, pts, W, Math.round(W * (W < 460 ? .9 : .6)), false, -1);
+    if (svg !== lastSmall) { lastSmall = svg; chartEl.innerHTML = svg; }
+    chartEl.setAttribute('aria-label', chartLabel(ga, pts) + ' Press to open it full screen.');
+    if (dlg.open) drawBig();
+  }
+
+  function drawBig() {
+    var W = Math.max(260, bigEl.clientWidth), H = Math.max(200, bigEl.clientHeight), sp = sortedPts(state.pts);
+    var svg = chartSvg(state.ga, state.pts, W, H, true, state.sel);
+    if (svg !== lastBig) { lastBig = svg; bigEl.innerHTML = svg; }
+    $('bigSub').textContent = state.ga === null ? '' : ' · ' + (state.ga === '>=38' ? '38 weeks or more' : state.ga + ' weeks');
+    $('bigDetail').textContent = state.sel >= 0 && sp[state.sel] ? pointText(sp[state.sel])
+      : (state.summary || (sp.length ? 'Tap a reading to see how far it is from each line.' : 'Add readings on the page to plot them here.'));
+  }
+
+  function openBig() { state.sel = -1; lastBig = ''; dlg.showModal(); drawBig(); }
 
   function chartLabel(ga, pts) {
     var base = 'Chart of serum bilirubin against days from birth';
@@ -555,8 +632,6 @@
       (mode === 'hours' ? he : de).classList.toggle('invalid', r.state === 'bad' && !/Bilirubin/.test(r.msg));
     });
 
-    drawChart(ga, pts);
-
     // summary of the latest reading
     var banded = pts.filter(function (p) { return p.band; }), text = '';
     if (banded.length) {
@@ -565,11 +640,13 @@
       summaryEl.className = 'banner ' + (latest.band === 'phototherapy' ? 'consider' : latest.band);
       summaryEl.innerHTML = '<div><b></b><p></p></div>';
       summaryEl.querySelector('b').textContent = BAND_HEAD[latest.band];
-      text = 'Latest reading: ' + fmt(latest.tsb) + ' µmol/L at ' + ageText(latest.hours) + '. That is ' + gap(latest.dp, true) + (latest.dp === 0 ? '' : ' the') + ' phototherapy line (' + fmt(latest.pho) + ') and ' + gap(latest.de, true) + (latest.de === 0 ? '' : ' the') + ' exchange transfusion line (' + fmt(latest.exc) + ' µmol/L).';
+      text = 'Latest reading: ' + fmt(latest.tsb) + ' µmol/L at ' + ageText(latest.hours) + '. ' + relText(latest);
       summaryEl.querySelector('p').textContent = text;
       text = BAND_HEAD[latest.band] + '. ' + text;
     } else summaryEl.hidden = true;
     if (text !== lastAnnounced) { lastAnnounced = text; $('live').textContent = text; }
+    state.summary = text;
+    drawChart(ga, pts);
 
     // threshold table
     var tb = $('tbody'), note = $('tableNote'), wrap = $('tableWrap');
@@ -597,6 +674,14 @@
   $('add').addEventListener('click', function () { addRow(true); refresh(); });
   $('clear').addEventListener('click', function () { rowsEl.innerHTML = ''; addRow(false); refresh(); });
   $('print').addEventListener('click', function () { window.print(); });
+  chartEl.addEventListener('click', openBig);
+  chartEl.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openBig(); } });
+  $('chartExpand').addEventListener('click', openBig);
+  $('chartClose').addEventListener('click', function () { dlg.close(); });
+  bigEl.addEventListener('click', function (e) {
+    var hit = e.target.closest && e.target.closest('.ch-hit'); if (!hit) return;
+    state.sel = Number(hit.dataset.i); drawBig();
+  });
   var resizeTimer; window.addEventListener('resize', function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(refresh, 120); });
   window.addEventListener('beforeprint', refresh);
 
